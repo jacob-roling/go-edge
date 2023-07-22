@@ -3,10 +3,12 @@ package edge
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path"
 	"strings"
 
+	"github.com/gin-gonic/gin/render"
 	"github.com/maja42/goval"
 )
 
@@ -204,7 +206,7 @@ func (edge *Edge) Compile(templateString string) Template {
 	return template
 }
 
-func Exec(template Template, data any) (string, error) {
+func (template Template) Exec(data any) (string, error) {
 	return template(data)
 }
 
@@ -212,7 +214,7 @@ func (edge *Edge) Render(templateName string, data any) string {
 	template, ok := edge.Cache[templateName]
 
 	if ok {
-		result, err := template(data)
+		result, err := template.Exec(data)
 		if err != nil {
 			panic(err)
 		}
@@ -227,11 +229,38 @@ func (edge *Edge) Render(templateName string, data any) string {
 
 	edge.Cache[templateName] = edge.Compile(string(bytes))
 
-	result, err := edge.Cache[templateName](data)
+	result, err := edge.Cache[templateName].Exec(data)
 
 	if err != nil {
 		panic(err)
 	}
 
 	return result
+}
+
+type EdgeGin struct {
+	TemplateName string
+	Context      any
+	Edge         *Edge
+}
+
+func (edgeGin EdgeGin) Instance(templateName string, data any) render.Render {
+	edgeGin.TemplateName = templateName
+	edgeGin.Context = data
+	return edgeGin
+}
+
+func (edgeGin EdgeGin) Render(w http.ResponseWriter) error {
+	output := edgeGin.Edge.Render(edgeGin.TemplateName, edgeGin.Context)
+
+	w.Write([]byte(output))
+
+	return errors.New("")
+}
+
+func (edgeGin EdgeGin) WriteContentType(w http.ResponseWriter) {
+	header := w.Header()
+	if val := header["Content-Type"]; len(val) == 0 {
+		header["Content-Type"] = []string{"text/html; charset=utf-8"}
+	}
 }
