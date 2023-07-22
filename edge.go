@@ -1,6 +1,7 @@
 package edge
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -9,7 +10,7 @@ import (
 	"github.com/maja42/goval"
 )
 
-type Template func(any) string
+type Template func(any) (string, error)
 
 type Config struct {
 	BaseDirectory string
@@ -118,8 +119,8 @@ func (edge *Edge) Compile(templateString string) Template {
 	layout := make([]rune, 0)
 	history := make([]rune, 0)
 	sections := make(map[string]string)
-	template := func(data any) string {
-		return ""
+	template := func(data any) (string, error) {
+		return "", errors.New("")
 	}
 	ignoreUntil := 0
 
@@ -144,12 +145,19 @@ func (edge *Edge) Compile(templateString string) Template {
 			if ok {
 				oldTemplate := template
 				frozenHistory := string(history[:len(history)-1])
-				template = func(data any) string {
+				template = func(data any) (string, error) {
 					result, err := edge.Eval.Evaluate(string(expression), data.(map[string]any), edge.Functions)
+
 					if err != nil {
-						panic(err)
+						return "", err
 					}
-					return oldTemplate(data) + frozenHistory + fmt.Sprintf("%v", result)
+
+					oldString, err := oldTemplate(data)
+
+					if err != nil {
+						return "", err
+					}
+					return oldString + frozenHistory + fmt.Sprintf("%v", result), err
 				}
 				ignoreUntil = index + len(expression) + 5
 				history = nil
@@ -184,19 +192,31 @@ func (edge *Edge) Compile(templateString string) Template {
 	} else {
 		oldTemplate := template
 		frozenHistory := string(history)
-		template = func(data any) string {
-			return oldTemplate(data) + frozenHistory
+		template = func(data any) (string, error) {
+			oldString, err := oldTemplate(data)
+			if err != nil {
+				return "", err
+			}
+			return oldString + frozenHistory, err
 		}
 	}
 
 	return template
 }
 
+func Exec(template Template, data any) (string, error) {
+	return template(data)
+}
+
 func (edge *Edge) Render(templateName string, data any) string {
 	template, ok := edge.Cache[templateName]
 
 	if ok {
-		return template(data)
+		result, err := template(data)
+		if err != nil {
+			panic(err)
+		}
+		return result
 	}
 
 	bytes, err := os.ReadFile(path.Join(edge.BaseDirectory, templateName+".edge"))
@@ -207,5 +227,11 @@ func (edge *Edge) Render(templateName string, data any) string {
 
 	edge.Cache[templateName] = edge.Compile(string(bytes))
 
-	return edge.Cache[templateName](data)
+	result, err := edge.Cache[templateName](data)
+
+	if err != nil {
+		panic(err)
+	}
+
+	return result
 }
