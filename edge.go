@@ -1,7 +1,6 @@
 package edge
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -122,7 +121,7 @@ func (edge *Edge) Compile(templateString string) Template {
 	history := make([]rune, 0)
 	sections := make(map[string]string)
 	template := func(data any) (string, error) {
-		return "", errors.New("")
+		return "", nil
 	}
 	ignoreUntil := 0
 
@@ -159,7 +158,8 @@ func (edge *Edge) Compile(templateString string) Template {
 					if err != nil {
 						return "", err
 					}
-					return oldString + frozenHistory + fmt.Sprintf("%v", result), err
+
+					return oldString + frozenHistory + fmt.Sprintf("%v", result), nil
 				}
 				ignoreUntil = index + len(expression) + 5
 				history = nil
@@ -199,7 +199,7 @@ func (edge *Edge) Compile(templateString string) Template {
 			if err != nil {
 				return "", err
 			}
-			return oldString + frozenHistory, err
+			return oldString + frozenHistory, nil
 		}
 	}
 
@@ -214,7 +214,7 @@ func (edge *Edge) Render(templateName string, data any) string {
 	template, ok := edge.Cache[templateName]
 
 	if ok {
-		result, err := template.Exec(data)
+		result, err := template(data)
 		if err != nil {
 			panic(err)
 		}
@@ -229,7 +229,7 @@ func (edge *Edge) Render(templateName string, data any) string {
 
 	edge.Cache[templateName] = edge.Compile(string(bytes))
 
-	result, err := edge.Cache[templateName].Exec(data)
+	result, err := edge.Cache[templateName](data)
 
 	if err != nil {
 		panic(err)
@@ -255,7 +255,7 @@ func (edgeGin EdgeGin) Render(w http.ResponseWriter) error {
 
 	w.Write([]byte(output))
 
-	return errors.New("")
+	return nil
 }
 
 func (edgeGin EdgeGin) WriteContentType(w http.ResponseWriter) {
