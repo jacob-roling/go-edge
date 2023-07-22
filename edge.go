@@ -185,6 +185,8 @@ func (edge *Edge) Compile(templateString string) Template {
 						history = append(history, []rune(contents)...)
 					}
 					ignoreUntil = index + len(tag) + len(tagContents) + 5
+				default:
+					history = append(history, char)
 				}
 			default:
 				history = append(history, char)
