@@ -1,4 +1,4 @@
-package main
+package edge
 
 import (
 	"fmt"
@@ -208,10 +208,4 @@ func (edge *Edge) Render(templateName string, data any) string {
 	edge.Cache[templateName] = edge.Compile(string(bytes))
 
 	return edge.Cache[templateName](data)
-}
-
-func main() {
-	edge := Default()
-
-	fmt.Println(edge.Render("home", map[string]any{"title": "home"}))
 }
